@@ -45,6 +45,27 @@ def run_pipeline():
 
     print("\nStep 2 complete: Video processed\n")
 
+    print("STEP 2b: Verifying video resolution...")
+    cmd_probe = [
+        "ffprobe", "-v", "error",
+        "-select_streams", "v:0",
+        "-show_entries", "stream=width,height",
+        "-of", "csv=s=x:p=0",
+        processed_video
+    ]
+    import subprocess
+    try:
+        res = subprocess.check_output(cmd_probe).decode("utf-8").strip()
+        pw, ph = map(int, res.split("x"))
+        if pw != 1080 or ph != 1920:
+            print(f"⚠️  WARNING: Processed video is {pw}x{ph}, expected 1080x1920")
+            print(f"   Videos may appear stretched on Facebook/Instagram")
+        else:
+            print(f"✅ Resolution verified: {pw}x{ph} (correct)")
+    except Exception as e:
+        print(f"⚠️  Could not verify resolution: {e}")
+    print("")
+
     print("STEP 3: Uploading to social media platforms...")
     print("   Platforms: Instagram, Facebook, Threads, YouTube")
     print("\n" + "=" * 60 + "\n")
