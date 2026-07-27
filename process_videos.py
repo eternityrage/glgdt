@@ -75,16 +75,21 @@ def process_single_video(video_path):
     except:
         has_audio = False
 
-    print(f"Original size: {width}x{height}")
+    target_w = 1080
+    target_h = 1920
+    aspect = width / height
+    target_aspect = target_w / target_h
+    print(f"Original size: {width}x{height} (aspect: {aspect:.3f})")
+    print(f"Target size: {target_w}x{target_h} (aspect: {target_aspect:.3f})")
     print(f"Has audio: {'Yes' if has_audio else 'No'}")
 
     w_delogo = 180
     h_delogo = 80
-    x_delogo = 1080 - w_delogo - 5
-    y_delogo = 1920 - h_delogo - 5
+    x_delogo = target_w - w_delogo - 5
+    y_delogo = target_h - h_delogo - 5
 
     print(f"Processing {filename}...")
-    print(f"  Upscaling to: 1080x1920")
+    print(f"  Resizing to: {target_w}x{target_h} (preserving aspect ratio + padding)")
     print(f"  Removing watermark at: x={x_delogo}, y={y_delogo}, w={w_delogo}, h={h_delogo}")
     print(f"  Video: ENHANCED (sharpen + clarity boost)")
     if needs_looping:
@@ -94,15 +99,17 @@ def process_single_video(video_path):
     else:
         print(f"  Audio: No audio in original video")
 
+    scale_pad = f"scale='min({target_w},iw)':'min({target_h},ih)':force_original_aspect_ratio=decrease,pad={target_w}:{target_h}:(ow-iw)/2:(oh-ih)/2:color=black"
+
     if needs_looping:
         vf_filter = (
             f"[0:v]split[v0][v1];"
-            f"[v0]scale=1080:1920:flags=lanczos,unsharp=5:5:1.0:5:5:0.0,delogo=x={x_delogo}:y={y_delogo}:w={w_delogo}:h={h_delogo}[s0];"
-            f"[v1]scale=1080:1920:flags=lanczos,unsharp=5:5:1.0:5:5:0.0,delogo=x={x_delogo}:y={y_delogo}:w={w_delogo}:h={h_delogo}[s1];"
+            f"[v0]{scale_pad},unsharp=5:5:1.0:5:5:0.0,delogo=x={x_delogo}:y={y_delogo}:w={w_delogo}:h={h_delogo}[s0];"
+            f"[v1]{scale_pad},unsharp=5:5:1.0:5:5:0.0,delogo=x={x_delogo}:y={y_delogo}:w={w_delogo}:h={h_delogo}[s1];"
             f"[s0][s1]concat=n=2:v=1:a=0[v]"
         )
     else:
-        vf_filter = f"[0:v]scale=1080:1920:flags=lanczos,unsharp=5:5:1.0:5:5:0.0,delogo=x={x_delogo}:y={y_delogo}:w={w_delogo}:h={h_delogo}[v]"
+        vf_filter = f"[0:v]{scale_pad},unsharp=5:5:1.0:5:5:0.0,delogo=x={x_delogo}:y={y_delogo}:w={w_delogo}:h={h_delogo}[v]"
 
     if has_audio:
         if needs_looping:
