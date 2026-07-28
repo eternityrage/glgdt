@@ -89,7 +89,7 @@ def process_single_video(video_path):
     y_delogo = target_h - h_delogo - 5
 
     print(f"Processing {filename}...")
-    print(f"  Resizing to: {target_w}x{target_h} (preserving aspect ratio + padding)")
+    print(f"  Resizing to: {target_w}x{target_h} (upscale + fill frame, no black bars)")
     print(f"  Removing watermark at: x={x_delogo}, y={y_delogo}, w={w_delogo}, h={h_delogo}")
     print(f"  Video: ENHANCED (sharpen + clarity boost)")
     if needs_looping:
@@ -99,17 +99,17 @@ def process_single_video(video_path):
     else:
         print(f"  Audio: No audio in original video")
 
-    scale_pad = f"scale={target_w}:{target_h}:force_original_aspect_ratio=decrease,pad={target_w}:{target_h}:(ow-iw)/2:(oh-ih)/2:color=black"
+    scale_pad = f"scale={target_w}:{target_h}:flags=lanczos:force_original_aspect_ratio=increase,crop={target_w}:{target_h}"
 
     if needs_looping:
         vf_filter = (
             f"[0:v]split[v0][v1];"
-            f"[v0]{scale_pad},unsharp=5:5:1.0:5:5:0.0,delogo=x={x_delogo}:y={y_delogo}:w={w_delogo}:h={h_delogo}[s0];"
-            f"[v1]{scale_pad},unsharp=5:5:1.0:5:5:0.0,delogo=x={x_delogo}:y={y_delogo}:w={w_delogo}:h={h_delogo}[s1];"
+            f"[v0]{scale_pad},unsharp=7:7:1.5:7:7:0.0,delogo=x={x_delogo}:y={y_delogo}:w={w_delogo}:h={h_delogo}[s0];"
+            f"[v1]{scale_pad},unsharp=7:7:1.5:7:7:0.0,delogo=x={x_delogo}:y={y_delogo}:w={w_delogo}:h={h_delogo}[s1];"
             f"[s0][s1]concat=n=2:v=1:a=0[v]"
         )
     else:
-        vf_filter = f"[0:v]{scale_pad},unsharp=5:5:1.0:5:5:0.0,delogo=x={x_delogo}:y={y_delogo}:w={w_delogo}:h={h_delogo}[v]"
+        vf_filter = f"[0:v]{scale_pad},unsharp=7:7:1.5:7:7:0.0,delogo=x={x_delogo}:y={y_delogo}:w={w_delogo}:h={h_delogo}[v]"
 
     if has_audio:
         if needs_looping:
