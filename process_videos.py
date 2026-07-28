@@ -99,7 +99,7 @@ def process_single_video(video_path):
     else:
         print(f"  Audio: No audio in original video")
 
-    scale_pad = f"scale='min({target_w},iw)':'min({target_h},ih)':force_original_aspect_ratio=decrease,pad={target_w}:{target_h}:(ow-iw)/2:(oh-ih)/2:color=black"
+    scale_pad = f"scale={target_w}:{target_h}:force_original_aspect_ratio=decrease,pad={target_w}:{target_h}:(ow-iw)/2:(oh-ih)/2:color=black"
 
     if needs_looping:
         vf_filter = (
