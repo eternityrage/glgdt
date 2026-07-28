@@ -101,15 +101,19 @@ def process_single_video(video_path):
 
     scale_pad = f"scale={target_w}:{target_h}:flags=lanczos:force_original_aspect_ratio=increase,crop={target_w}:{target_h}"
 
+    # High quality upscale pipeline: denoise -> HQ scale -> enhance -> sharpen -> delogo
+    enhance = f"eq=contrast=1.05:saturation=1.15:brightness=0.02"
+    pipe = f"{scale_pad},{enhance},unsharp=7:7:2.0:7:7:0.0,delogo=x={x_delogo}:y={y_delogo}:w={w_delogo}:h={h_delogo}"
+
     if needs_looping:
         vf_filter = (
             f"[0:v]split[v0][v1];"
-            f"[v0]{scale_pad},unsharp=7:7:1.5:7:7:0.0,delogo=x={x_delogo}:y={y_delogo}:w={w_delogo}:h={h_delogo}[s0];"
-            f"[v1]{scale_pad},unsharp=7:7:1.5:7:7:0.0,delogo=x={x_delogo}:y={y_delogo}:w={w_delogo}:h={h_delogo}[s1];"
+            f"[v0]{pipe}[s0];"
+            f"[v1]{pipe}[s1];"
             f"[s0][s1]concat=n=2:v=1:a=0[v]"
         )
     else:
-        vf_filter = f"[0:v]{scale_pad},unsharp=7:7:1.5:7:7:0.0,delogo=x={x_delogo}:y={y_delogo}:w={w_delogo}:h={h_delogo}[v]"
+        vf_filter = f"[0:v]{pipe}[v]"
 
     if has_audio:
         if needs_looping:
@@ -118,22 +122,25 @@ def process_single_video(video_path):
             af_filter = f"[0:a]loudnorm=I=-16:TP=-1.5:LRA=11,dynaudnorm=50:3:0.5[a]"
 
         cmd_ffmpeg = [
-            "ffmpeg", "-y", "-i", video_path,
+            "ffmpeg", "-y",
+            "-i", video_path,
             "-filter_complex", f"{vf_filter};{af_filter}",
-            "-map", "[v]",
-            "-map", "[a]",
-            "-c:v", "libx264", "-preset", "slow", "-crf", "16",
+            "-map", "[v]", "-map", "[a]",
+            "-c:v", "libx264", "-preset", "veryslow", "-crf", "14",
             "-profile:v", "high", "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
             "-c:a", "aac", "-b:a", "192k",
             out_path
         ]
     else:
         cmd_ffmpeg = [
-            "ffmpeg", "-y", "-i", video_path,
+            "ffmpeg", "-y",
+            "-i", video_path,
             "-filter_complex", vf_filter,
             "-map", "[v]",
-            "-c:v", "libx264", "-preset", "slow", "-crf", "16",
+            "-c:v", "libx264", "-preset", "veryslow", "-crf", "14",
             "-profile:v", "high", "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
             "-an",
             out_path
         ]
