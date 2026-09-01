@@ -30,6 +30,7 @@ wheels/
 Videos/
 Processed_Videos/
 Published_Videos/
+Audio/
 
 # Logs
 *.log

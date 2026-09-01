@@ -34,10 +34,19 @@ def run_pipeline():
 
     print(f"\nStep 1 complete: Video downloaded\n")
 
-    print("STEP 2: Processing video (upscaling + watermark removal)...")
+    print("STEP 1.5: Fetching audio track from Google Drive...")
+    from google_drive_fetch import fetch_one_audio_from_drive
+
+    audio_track = fetch_one_audio_from_drive()
+    if audio_track:
+        print(f"Audio track ready: {os.path.basename(audio_track)}\n")
+    else:
+        print("No audio track fetched - will keep original video audio (if any).\n")
+
+    print("STEP 2: Processing video (upscaling + watermark removal + audio overlay)...")
     from process_videos import process_single_video
 
-    processed_video = process_single_video(downloaded)
+    processed_video = process_single_video(downloaded, audio_track)
 
     if not processed_video or not os.path.exists(processed_video):
         print("\nVideo processing failed!")

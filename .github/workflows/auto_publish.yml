@@ -66,6 +66,7 @@ jobs:
             "FACEBOOK_PAGE_ID"
             "THREADS_ACCESS_TOKEN"
             "THREADS_USER_ID"
+            "AUDIO_DRIVE_FOLDER_ID"
           )
 
           for secret in "${optional_secrets[@]}"; do
@@ -95,11 +96,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
           THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+          AUDIO_DRIVE_FOLDER_ID: ${{ secrets.AUDIO_DRIVE_FOLDER_ID }}
       
       - name: Run automation pipeline
         env:
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
           GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+          AUDIO_DRIVE_FOLDER_ID: ${{ secrets.AUDIO_DRIVE_FOLDER_ID }}
 
           INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
           INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
@@ -137,7 +140,7 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           
-          git add published_videos.json 2>/dev/null || true
+          git add published_videos.json audio_usage.json 2>/dev/null || true
           
           if ! git diff --staged --quiet; then
             git commit -m "Update published videos log [skip ci]"

@@ -28,10 +28,18 @@ def get_video_duration(video_path):
         return None
 
 
-def process_single_video(video_path):
+def process_single_video(video_path, audio_path=None):
     if not os.path.exists(video_path):
         print(f"Error: Video not found: {video_path}")
         return None
+
+    music_path = None
+    if audio_path:
+        if os.path.exists(audio_path):
+            music_path = audio_path
+            print(f"Music track: {os.path.basename(audio_path)}")
+        else:
+            print(f"Warning: Audio file not found: {audio_path}")
 
     filename = os.path.basename(video_path)
     out_path = os.path.join(output_dir, filename)
@@ -94,7 +102,9 @@ def process_single_video(video_path):
     print(f"  Video: ENHANCED (sharpen + clarity boost)")
     if needs_looping:
         print(f"  Extension: Looping video (6s to 12s)")
-    if has_audio:
+    if music_path:
+        print(f"  Audio: ORIGINAL MUTED + music overlay ({os.path.basename(music_path)})")
+    elif has_audio:
         print(f"  Audio: ENHANCED (normalize volume + improve clarity)")
     else:
         print(f"  Audio: No audio in original video")
@@ -115,7 +125,31 @@ def process_single_video(video_path):
     else:
         vf_filter = f"[0:v]{pipe}[v]"
 
-    if has_audio:
+    final_duration = duration
+    if needs_looping and duration is not None:
+        final_duration = duration * 2
+
+    if music_path:
+        af_filter = (
+            f"[1:a]aloop=loop=-1:size=2e+09,"
+            f"loudnorm=I=-16:TP=-1.5:LRA=11,"
+            f"dynaudnorm=50:3:0.5,"
+            f"atrim=0:{final_duration:.3f},asetpts=N/SR/TB[a]"
+        )
+
+        cmd_ffmpeg = [
+            "ffmpeg", "-y",
+            "-i", video_path,
+            "-i", music_path,
+            "-filter_complex", f"{vf_filter};{af_filter}",
+            "-map", "[v]", "-map", "[a]",
+            "-c:v", "libx264", "-preset", "veryslow", "-crf", "14",
+            "-profile:v", "high", "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
+            "-c:a", "aac", "-b:a", "192k",
+            out_path
+        ]
+    elif has_audio:
         if needs_looping:
             af_filter = f"[0:a]aloop=loop=1:size=2e+09[a1];[a1]loudnorm=I=-16:TP=-1.5:LRA=11,dynaudnorm=50:3:0.5[a]"
         else:

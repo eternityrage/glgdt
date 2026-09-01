@@ -13,10 +13,13 @@ if sys.platform == 'win32':
 load_dotenv()
 
 GOOGLE_DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+AUDIO_DRIVE_FOLDER_ID = os.getenv("AUDIO_DRIVE_FOLDER_ID")
 GOOGLE_SERVICE_ACCOUNT_KEY = os.getenv("GOOGLE_SERVICE_ACCOUNT_KEY")
 LOCAL_INPUT_DIR = os.getenv("LOCAL_INPUT_DIR", "Videos")
+LOCAL_AUDIO_DIR = os.getenv("LOCAL_AUDIO_DIR", "Audio")
 
 PUBLISHED_LOG = "published_videos.json"
+AUDIO_USAGE_LOG = "audio_usage.json"
 
 
 def get_published_videos():
@@ -47,6 +50,108 @@ def get_repost_counts():
         video_name = entry.get('video_name', '')
         counts[video_name] = counts.get(video_name, 0) + 1
     return counts
+
+
+def get_audio_usage():
+    if os.path.exists(AUDIO_USAGE_LOG):
+        with open(AUDIO_USAGE_LOG, 'r', encoding='utf-8') as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                return {}
+    return {}
+
+
+def increment_audio_usage(name):
+    usage = get_audio_usage()
+    usage[name] = usage.get(name, 0) + 1
+    with open(AUDIO_USAGE_LOG, 'w', encoding='utf-8') as f:
+        json.dump(usage, f, indent=4)
+
+
+def list_drive_audio(service):
+    if not service or not AUDIO_DRIVE_FOLDER_ID:
+        return []
+
+    try:
+        query = f"'{AUDIO_DRIVE_FOLDER_ID}' in parents and trashed=false"
+        audio_mime_types = [
+            "audio/mpeg",
+            "audio/mp3",
+            "audio/mp4",
+            "audio/wav",
+            "audio/x-wav",
+            "audio/aac",
+            "audio/ogg",
+            "audio/x-m4a",
+            "audio/flac",
+            "audio/x-flac"
+        ]
+
+        audio_files = []
+        for mime_type in audio_mime_types:
+            query_with_mime = f"{query} and mimeType contains '{mime_type}'"
+            results = service.files().list(
+                q=query_with_mime,
+                fields="files(id, name, size, mimeType)",
+                spaces='drive'
+            ).execute()
+
+            audio_files.extend(results.get('files', []))
+
+        audio_files.sort(key=lambda x: x.get('name', ''))
+        return audio_files
+    except Exception as e:
+        print(f"Google Drive audio API error: {e}")
+        return []
+
+
+def fetch_one_audio_from_drive():
+    if not AUDIO_DRIVE_FOLDER_ID:
+        print("Error: AUDIO_DRIVE_FOLDER_ID not set in .env")
+        return None
+
+    Path(LOCAL_AUDIO_DIR).mkdir(parents=True, exist_ok=True)
+
+    print("=" * 60)
+    print("FETCHING AUDIO FROM GOOGLE DRIVE")
+    print("=" * 60)
+
+    service = get_drive_service()
+    if not service:
+        return None
+
+    audio_files = list_drive_audio(service)
+
+    if not audio_files:
+        print("No audio files found in Google Drive audio folder.")
+        return None
+
+    print(f"\nFound {len(audio_files)} audio file(s) in Google Drive.")
+
+    usage = get_audio_usage()
+
+    audio_choices = []
+    weights = []
+    for audio_info in audio_files:
+        aname = audio_info['name']
+        count = usage.get(aname, 0)
+        weight = max(1, 1000 // (3 ** min(count, 6)))
+        audio_choices.append(audio_info)
+        weights.append(weight)
+
+    selected_audio = random.choices(audio_choices, weights=weights, k=1)[0]
+    audio_name = selected_audio['name']
+    use_count = usage.get(audio_name, 0)
+    print(f"  Selected (used {use_count} time(s) before): {audio_name}")
+
+    local_path = os.path.join(LOCAL_AUDIO_DIR, audio_name)
+    if download_video(service, selected_audio, local_path):
+        increment_audio_usage(audio_name)
+        print(f"\nSelected audio: {audio_name}")
+        return local_path
+
+    return None
 
 
 def get_drive_service():
